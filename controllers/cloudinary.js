@@ -53,7 +53,7 @@ exports.upload_single_image = async(req, res, next) => {
 
         try {
 
-            uploadedObject = await uploads(path, "profile_pictures");
+            uploadedObject = await uploads(path, "lectures");
             console.log("cloudinary link : " + uploadedObject.url);
 
 

@@ -10,13 +10,17 @@ module.exports = {
         console.log(obj)
         var modelObj = new modelName(obj);
 
-        modelObj.hashPassword(modelObj.password);
-        console.log(modelObj.password);
+        if(modelName === "UserModel")
+        {
+            modelObj.hashPassword(modelObj.password);
+            console.log(modelObj.password);
+        }
+
         modelObj
             .save()
             .then(result => {
 
-                return res.status(201).json({ "message": "saved", "userID": result._id });
+                return res.status(201).json({ "message": "saved", "_id": result._id });
 
 
             }).catch(err => {

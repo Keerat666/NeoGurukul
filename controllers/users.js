@@ -27,11 +27,7 @@ module.exports = {
 
                         }
                         if (UserModel) {
-
-
-
-
-                            return res.status(200).json({ "_id": UserModel1._id, "login": true });
+                            return res.status(200).json({ "_id": UserModel1._id, "login": true , "role" : UserModel1.role });
                         } else {
                             //wrong password
                             return res.status(403).json({ "login": false, "err": " Incorrect Pasword" });

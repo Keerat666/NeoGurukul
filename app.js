@@ -3,6 +3,9 @@ var cors = require('cors')
 const app = express();
 const PORT = 8000;
 var usersRouter = require('./routes/user_routes');
+var classRouter = require('./routes/class_routes');
+var lectureRouter = require('./routes/lecture_route');
+
 const swStats = require('swagger-stats');
 var swaggerUi = require('swagger-ui-express')
 var swaggerDocument = require('./docs/swagger.json');
@@ -34,6 +37,9 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 console.log("Swagger running at port 8000 at /api-docs")
     //setting up route for user related API's
 app.use('/api/v1/users', usersRouter);
+app.use('/api/v1/class',classRouter );
+app.use('/api/v1/lecture', lectureRouter);
+
 
 // // Serve static files from the React app
 // app.use(express.static(path.join(__dirname, 'ui/dist')));
