@@ -38,9 +38,9 @@ router.delete('/delete', function(req, res) {
 });
 
 router.post(
-    '/upload_photo',
+    '/upload_lecture',
     multer({ dest: 'temp/', limits: { fieldSize: 8 * 1024 * 1024 } }).single(
-        'image'
+        'audio'
     ),
     function(req, res) {
         cloudinary.upload_single_image(req, res)
