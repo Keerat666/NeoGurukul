@@ -10,9 +10,11 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
+      "deploymentTarget": "16.4",
       "infoPlist": {
         "NSMicrophoneUsageDescription": "We need access to your mic to record audio."
-      }
+      },
+      "bundleIdentifier": "com.keerat666.mobile"
     },
     "android": {
       "adaptiveIcon": {
