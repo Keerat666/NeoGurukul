@@ -9,7 +9,7 @@ import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
+  const colorScheme = "dark";
 
   return (
     <Tabs
@@ -37,7 +37,7 @@ export default function TabLayout() {
         name="record"
         options={{
           title: 'Record',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="microphone" color={color} />,
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="paperplane.fill" color={color} />,
         }}
       />
       <Tabs.Screen

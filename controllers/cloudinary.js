@@ -47,6 +47,7 @@ function uploads(file, folder) {
 
 exports.upload_single_image = async(req, res, next) => {
     {
+        console.log(req)
         const { path } = req.file;
         console.log("PATH : " + path)
         let uploadedObject = {};

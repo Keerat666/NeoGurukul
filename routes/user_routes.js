@@ -46,7 +46,4 @@ router.post(
         cloudinary.upload_single_image(req, res)
     }
 )
-const upload = multer({ dest: 'uploads/' })
-var cpUpload_cloud = upload.fields([{ name: 'photos' }])
-
 module.exports = router;
