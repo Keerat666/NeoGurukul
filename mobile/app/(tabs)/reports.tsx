@@ -30,7 +30,8 @@ export default function TabThreeScreen() {
       try {
         const res = await fetch('https://neogurukul.onrender.com/api/v1/lecture/all');
         const data = await res.json();
-  
+        setLectures(data);
+        setLoading(false);
         // For each lecture, also fetch transcription status
         const updatedLectures = await Promise.all(
           data.map(async (lecture: Lecture) => {
@@ -38,19 +39,33 @@ export default function TabThreeScreen() {
             console.log(lecture)
             if(lecture.status === "pending")
             {
-              const transcribeStatus = await checkTranscriptionStatus(lecture._id);
+              console.log("Triggering Transcribe sync")
+              const transcribeStatusRes = await checkTranscriptionStatus(lecture._id);
+              console.log(transcribeStatusRes)
 
-              if(transcribeStatus.msg === "complete")
+              if(transcribeStatusRes?.msg === "complete")
               {
-
+                console.log("Triggering sync with web db")
+                await fetch('https://neogurukul.onrender.com/api/v1/lecture/edit', {
+                  method: 'PUT',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    ...lecture,
+                    status: 'success',
+                    transcription: transcribeStatusRes?.output.data[0], // Replace with real data if needed
+                    summary: transcribeStatusRes?.output.summary, // Replace with real data
+                    lectureMetaData: lecture.lectureDescription,
+                    averageDuration : transcribeStatusRes?.output.average_duration
+                  }),
+                });
                 //changing status for item
                 return {
                   ...lecture,
-                  status: transcribeStatus.msg || lecture.status, // prefer new status if available
+                  status: transcribeStatusRes.msg || lecture.status, // prefer new status if available
                 };
 
                 //trigger update call to database
-                  
+
 
               }
               }
@@ -81,7 +96,7 @@ export default function TabThreeScreen() {
       if (!res.ok) return null;
   
       const data = await res.json();
-      return data.status; // Assuming it returns { status: "completed" | "pending" | etc. }
+      return data; // Assuming it returns { status: "completed" | "pending" | etc. }
     } catch (error) {
       console.error('Failed to fetch transcription status:', error);
       return null;
