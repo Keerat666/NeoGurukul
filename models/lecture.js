@@ -17,7 +17,7 @@ var lectureSchema = new Schema({
     lectureLink : {type : String, default : ""},
     transcription : {type : String, default : ""},
     summary : {type : String, default : ""},
-
+    averageDuration : {type:Number, default:0.0}
 }, { collection: 'lectures_neogurukul' });
 
 var LectureModel = mongoose.model('Lectures', lectureSchema);
