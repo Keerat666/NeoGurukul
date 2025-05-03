@@ -30,16 +30,64 @@ export default function TabThreeScreen() {
       try {
         const res = await fetch('https://neogurukul.onrender.com/api/v1/lecture/all');
         const data = await res.json();
-        setLectures(data);
+  
+        // For each lecture, also fetch transcription status
+        const updatedLectures = await Promise.all(
+          data.map(async (lecture: Lecture) => {
+
+            console.log(lecture)
+            if(lecture.status === "pending")
+            {
+              const transcribeStatus = await checkTranscriptionStatus(lecture._id);
+
+              if(transcribeStatus.msg === "complete")
+              {
+
+                //changing status for item
+                return {
+                  ...lecture,
+                  status: transcribeStatus.msg || lecture.status, // prefer new status if available
+                };
+
+                //trigger update call to database
+                  
+
+              }
+              }
+          })
+        );
+  
+        setLectures(updatedLectures);
       } catch (error) {
         console.error('Failed to fetch lectures:', error);
       } finally {
         setLoading(false);
       }
     };
-
+  
     fetchLectures();
   }, []);
+  
+
+
+  const checkTranscriptionStatus = async (lectureId: string) => {
+    try {
+      const res = await fetch('https://neogurukul-ai.onrender.com/transcribe_result', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ event_id: lectureId }),
+      });
+  
+      if (!res.ok) return null;
+  
+      const data = await res.json();
+      return data.status; // Assuming it returns { status: "completed" | "pending" | etc. }
+    } catch (error) {
+      console.error('Failed to fetch transcription status:', error);
+      return null;
+    }
+  };
+  
 
   const handleStartChat = (lecture: Lecture) => {
     router.push({
