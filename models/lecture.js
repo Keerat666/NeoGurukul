@@ -14,7 +14,7 @@ var lectureSchema = new Schema({
     lectureDescription: { type: String, required: true, description: "Should have a description" },
     lectureMetaData: { type: String, required: false, description: "Should have a description" },
     assignedUsers: { type : [String], default:[]}, // Useful for giving access to both Teachers and Students
-    lectureLink : {type : String, default : ""},
+    lectureLink : {type : String, default : "",required: true},
 }, { collection: 'lectures_neogurukul' });
 
 var LectureModel = mongoose.model('Lectures', lectureSchema);

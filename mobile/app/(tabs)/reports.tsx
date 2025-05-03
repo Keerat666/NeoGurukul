@@ -1,25 +1,113 @@
-import { StyleSheet } from 'react-native';
+import { useEffect, useState } from 'react';
+import { StyleSheet, FlatList, View, ActivityIndicator, Platform, Pressable } from 'react-native';
 import ParallaxScrollView from '@/components/ParallaxScrollView';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
-import { IconSymbol } from '@/components/ui/IconSymbol';
+import { useColorScheme } from '@/hooks/useColorScheme';
+import { useRouter } from 'expo-router';
+
+interface Lecture {
+  _id: string;
+  lectureTitle: string;
+  lectureDescription: string;
+  language: string;
+  lectureLink: string;
+  lecture_createdBy_name: string;
+  lecture_created_at: string;
+  status: string; // Added this
+}
 
 export default function TabThreeScreen() {
+  const [lectures, setLectures] = useState<Lecture[]>([]);
+  const [loading, setLoading] = useState(true);
+  const colorScheme = useColorScheme();
+
+  const router = useRouter();
+
+
+  useEffect(() => {
+    const fetchLectures = async () => {
+      try {
+        const res = await fetch('https://neogurukul.onrender.com/api/v1/lecture/all');
+        const data = await res.json();
+        setLectures(data);
+      } catch (error) {
+        console.error('Failed to fetch lectures:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchLectures();
+  }, []);
+
+  const handleStartChat = (lecture: Lecture) => {
+    router.push({
+      pathname: '/chat/[lectureId]',
+      params: {
+        lectureId: lecture._id,
+        title: lecture.lectureTitle,
+        description: lecture.lectureDescription,
+      },
+    });
+    
+  };
+
+  const renderLecture = ({ item }: { item: Lecture }) => (
+    <View
+      style={[
+        styles.lectureCard,
+        {
+          backgroundColor: colorScheme === 'dark' ? '#1E1E1E' : '#F0F0F0',
+          borderColor: colorScheme === 'dark' ? '#333' : '#DDD',
+        },
+      ]}
+    >
+      <ThemedText type="subtitle">{item.lectureTitle}</ThemedText>
+      <ThemedText>{item.lectureDescription}</ThemedText>
+      <ThemedText>Language: {item.language}</ThemedText>
+      <ThemedText>By: {item.lecture_createdBy_name}</ThemedText>
+      <ThemedText>Date: {new Date(item.lecture_created_at).toLocaleDateString()}</ThemedText>
+
+      <ThemedText>Status: {item.status}</ThemedText>
+
+      {Platform.OS === 'web' && (
+        <audio controls style={styles.audioPlayer}>
+          <source src={item.lectureLink} type="audio/mp3" />
+          Your browser does not support the audio element.
+        </audio>
+      )}
+
+<Pressable
+  onPress={() => handleStartChat(item)}
+  style={[
+    styles.chatButton,
+    {
+      backgroundColor: colorScheme === 'dark' ? 'green' : '#E0E0E0',
+    },
+  ]}
+>
+  <ThemedText>Start Chat</ThemedText>
+</Pressable>
+    </View>
+  );
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#D0D0D0', dark: '#353636' }}
-      headerImage={
-        <IconSymbol
-          size={310}
-          color="#808080"
-          name="chevron.left.forwardslash.chevron.right"
-          style={styles.headerImage}
-        />
-      }>
+<ParallaxScrollView>
       <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Chat with a class</ThemedText>
+        <ThemedText type="title">Lecture List</ThemedText>
       </ThemedView>
-      <ThemedText>Chatting with a class will be done here!</ThemedText>
+
+      {loading ? (
+        <ActivityIndicator size="large" style={{ marginTop: 20 }} />
+      ) : (
+        <FlatList
+          data={lectures}
+          keyExtractor={(item) => item._id}
+          renderItem={renderLecture}
+          contentContainerStyle={styles.listContainer}
+        />
+      )}
     </ParallaxScrollView>
   );
 }
@@ -34,5 +122,30 @@ const styles = StyleSheet.create({
   titleContainer: {
     flexDirection: 'row',
     gap: 8,
+    marginBottom: 12,
+    marginTop: 8,
+    alignItems: 'center',     // horizontal centering
+    justifyContent: 'center', // vertical centering
+    paddingVertical: 4,      // optional padding
+  },
+  listContainer: {
+    padding: 16,
+  },
+  lectureCard: {
+    marginBottom: 16,
+    padding: 14,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  audioPlayer: {
+    marginTop: 10,
+    width: '100%',
+  },
+  chatButton: {
+    marginTop: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+    alignItems: 'center',
   },
 });
