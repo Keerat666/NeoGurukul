@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { StyleSheet, FlatList, View, ActivityIndicator, Platform, Pressable } from 'react-native';
+import { useEffect, useState, useRef } from 'react';
+import { StyleSheet, FlatList, View, ActivityIndicator, Platform, Pressable, Text } from 'react-native';
 import ParallaxScrollView from '@/components/ParallaxScrollView';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
@@ -14,86 +14,32 @@ interface Lecture {
   lectureLink: string;
   lecture_createdBy_name: string;
   lecture_created_at: string;
-  status: string; // Added this
-  summary : string;
-  transcription : string;
+  status: string;
+  summary: string;
+  transcription: string;
+  lectureMetaData?: string;
 }
 
 export default function TabThreeScreen() {
   const [lectures, setLectures] = useState<Lecture[]>([]);
   const [loading, setLoading] = useState(true);
-
-
+  const [selectedTab, setSelectedTab] = useState<'all' | 'completed' | 'pending'>('all');
   const [transcriptionHeartbeat, setTranscriptionHeartbeat] = useState({});
-
   const colorScheme = useColorScheme();
-
   const router = useRouter();
+  const hasRunRef = useRef(false);
 
-
-  const fetchData =async()=>{
-
+  const fetchData = async () => {
     try {
       const res = await fetch('https://neogurukul.onrender.com/api/v1/lecture/all');
       const data = await res.json();
-      setLectures(data);
+      setLectures(data.reverse());
+    } catch {
+      console.log("Encountered an error");
+    } finally {
       setLoading(false);
     }
-    catch{
-      console.log("Encountered an error")
-    }
-  }
-
-  useEffect(() => {
-    const fetchLectures = async () => {
-      try {
-        const res = await fetch('https://neogurukul.onrender.com/api/v1/lecture/all');
-        const data = await res.json();
-        setLectures(data);
-        setLoading(false);
-        // For each lecture, also fetch transcription status
-        const updatedLectures = await Promise.all(
-          data.map(async (lecture: Lecture) => {
-
-            console.log(lecture)
-            if(lecture.status === "pending")
-            {
-              console.log("Triggering Transcribe sync")
-              const transcribeStatusRes = await checkTranscriptionStatus(lecture._id);
-              console.log(transcribeStatusRes)
-
-              if(transcribeStatusRes?.msg === "complete")
-              {
-                console.log("Triggering sync with web db")
-                await fetch('https://neogurukul.onrender.com/api/v1/lecture/edit', {
-                  method: 'PUT',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                    ...lecture,
-                    status: 'success',
-                    transcription: transcribeStatusRes?.output.data[0], // Replace with real data if needed
-                    summary: transcribeStatusRes?.output.summary, // Replace with real data
-                    lectureMetaData: lecture.lectureDescription,
-                    averageDuration : transcribeStatusRes?.output.average_duration
-                  }),
-                });
-                //trigger a getAll call again
-                fetchData()
-              }
-              }
-          })
-        );  
-      } catch (error) {
-        console.error('Failed to fetch lectures:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-  
-    fetchLectures();
-  }, []);
-  
-
+  };
 
   const checkTranscriptionStatus = async (lectureId: string) => {
     try {
@@ -101,19 +47,54 @@ export default function TabThreeScreen() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ event_id: lectureId }),
+
+        
       });
-  
+
       if (!res.ok) return null;
-  
       const data = await res.json();
-      setTranscriptionHeartbeat(data)
-      return data; // Assuming it returns { status: "completed" | "pending" | etc. }
+      setTranscriptionHeartbeat(data);
+      return data;
     } catch (error) {
       console.error('Failed to fetch transcription status:', error);
       return null;
     }
   };
-  
+
+  const handleRetryTranscription = async (lecture: any) => {
+    console.log(lecture)
+    try {
+      const res = await fetch('https://neogurukul-ai.onrender.com/transcribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          file_url: lecture.lectureLink,
+          lang: lecture.language,
+          metadata: {
+            classId: lecture._id,
+            lectureTitle: lecture.lectureTitle,
+            lectureDescription: lecture.lectureDescription,
+            lectureMetaData: lecture.lectureMetaData || '',
+          }
+        }),
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        alert("Retry initiated successfully.");
+      }
+      else if (res.status === 503) {
+        alert("Please ask the maintainer to turn on the server.");
+      }
+      
+      else {
+        alert("Retry failed: " + (data?.error || "Unknown error"));
+      }
+    } catch (err) {
+      console.error('Retry transcription failed:', err);
+      alert("Retry failed. Please try again later.");
+    }
+  };
 
   const handleStartChat = (lecture: Lecture) => {
     router.push({
@@ -124,8 +105,47 @@ export default function TabThreeScreen() {
         description: lecture.lectureDescription,
       },
     });
-    
   };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  useEffect(() => {
+    const checkPendingLectures = async () => {
+      if (selectedTab !== 'pending' || hasRunRef.current) return;
+      hasRunRef.current = true;
+
+      const pendingLectures = lectures.filter((lecture) => lecture.status !== 'success');
+      for (const lecture of pendingLectures) {
+        const transcribeStatusRes = await checkTranscriptionStatus(lecture._id);
+
+        if (transcribeStatusRes?.msg === "complete") {
+          await fetch('https://neogurukul.onrender.com/api/v1/lecture/edit', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              ...lecture,
+              status: 'success',
+              transcription: transcribeStatusRes.output.data[0],
+              summary: transcribeStatusRes.output.summary,
+              lectureMetaData: lecture.lectureDescription,
+              averageDuration: transcribeStatusRes.output.average_duration,
+            }),
+          });
+          await fetchData(); // Refresh list after successful update
+        }
+      }
+    };
+
+    checkPendingLectures();
+  }, [selectedTab, lectures]);
+
+  const filteredLectures = lectures.filter((lecture) => {
+    if (selectedTab === 'completed') return lecture.status === 'success';
+    if (selectedTab === 'pending') return lecture.status !== 'success';
+    return true;
+  });
 
   const renderLecture = ({ item }: { item: Lecture }) => (
     <View
@@ -142,7 +162,6 @@ export default function TabThreeScreen() {
       <ThemedText>Language: {item.language}</ThemedText>
       <ThemedText>By: {item.lecture_createdBy_name}</ThemedText>
       <ThemedText>Date: {new Date(item.lecture_created_at).toLocaleDateString()}</ThemedText>
-
       <ThemedText>Status: {item.status}</ThemedText>
 
       {Platform.OS === 'web' && (
@@ -152,77 +171,77 @@ export default function TabThreeScreen() {
         </audio>
       )}
 
-{item.status === "success" && (
-  <>
-    <View
-      style={[
-        styles.longTextContainer,
-        {
-          backgroundColor: colorScheme === 'dark' ? '#2a2a2a' : '#f9f9f9',
-        },
-      ]}
-    >
-      <ThemedText type="subtitle" style={styles.sectionTitle}>📝 Summary</ThemedText>
-      <ThemedText style={[styles.longText, { color: colorScheme === 'dark' ? '#ccc' : '#333' }]}>
-        {item.summary}
-      </ThemedText>
+      {item.status === "success" && (
+        <>
+          <View style={[styles.longTextContainer, { backgroundColor: colorScheme === 'dark' ? '#2a2a2a' : '#f9f9f9' }]}>
+            <ThemedText type="subtitle" style={styles.sectionTitle}>📝 Summary</ThemedText>
+            <ThemedText style={[styles.longText, { color: colorScheme === 'dark' ? '#ccc' : '#333' }]}>{item.summary}</ThemedText>
+          </View>
 
-      </View>
+          <View style={[styles.longTextContainer, { backgroundColor: colorScheme === 'dark' ? '#2a2a2a' : '#f9f9f9' }]}>
+            <ThemedText type="subtitle" style={styles.sectionTitle}>🗣️ Transcription</ThemedText>
+            <ThemedText style={[styles.longText, { color: colorScheme === 'dark' ? '#ccc' : '#333' }]}>{item.transcription}</ThemedText>
+          </View>
 
-      <View
-      style={[
-        styles.longTextContainer,
-        {
-          backgroundColor: colorScheme === 'dark' ? '#2a2a2a' : '#f9f9f9',
-        },
-      ]}
-    >
-      <ThemedText type="subtitle" style={styles.sectionTitle}>🗣️ Transcription</ThemedText>
-      <ThemedText style={[styles.longText, { color: colorScheme === 'dark' ? '#ccc' : '#333' }]}>
-        {item.transcription}
-      </ThemedText>
-    </View>
-  </>
-)}
+          {item.status === "success" && (
+            <Pressable onPress={() => handleStartChat(item)} style={[styles.chatButton, { backgroundColor: colorScheme === 'dark' ? 'green' : '#E0E0E0' }]}>
+              <ThemedText>Start Chat</ThemedText>
+            </Pressable>
+          )}
+        </>
+      )}
 
-{transcriptionHeartbeat?.output?.data[0].length>0 &&
-<Pressable
-onPress={() => handleStartChat(item)}
-style={[
-  styles.chatButton,
-  {
-    backgroundColor: colorScheme === 'dark' ? 'green' : '#E0E0E0',
-  },
-]}
->
-<ThemedText>Start Chat</ThemedText>
-</Pressable>
+      {item.status !== "success" && (
+        <View style={{ marginVertical: 12 }}>
+          <ThemedText style={{ fontStyle: 'italic', color: '#888', marginBottom: 6 }}>
+            Chat will be available shortly. We’re still processing the audio from this lecture.
+          </ThemedText>
 
-}
-
-
-
-{item.status !== "success" && (
-  <ThemedText style={{ marginVertical: 12, fontStyle: 'italic', color: '#888' }}>
-    Chat will be available shortly. We’re still processing the audio from this lecture.
-  </ThemedText>
-)}
-
-
+          {/* <Pressable
+            onPress={() => handleRetryTranscription(item)}
+            style={[
+              styles.chatButton,
+              { backgroundColor: colorScheme === 'dark' ? '#555' : '#EEE' },
+            ]}
+          >
+            <ThemedText>🔁 Retry Transcription</ThemedText>
+          </Pressable> */}
+        </View>
+      )}
     </View>
   );
 
   return (
-<ParallaxScrollView>
+    <ParallaxScrollView>
       <ThemedView style={styles.titleContainer}>
         <ThemedText type="title">Lecture List</ThemedText>
       </ThemedView>
+
+      <View style={styles.tabContainer}>
+        {['all', 'completed', 'pending'].map((tab) => (
+          <Pressable
+            key={tab}
+            onPress={() => {
+              hasRunRef.current = false;
+              setSelectedTab(tab as 'all' | 'completed' | 'pending');
+            }}
+            style={[
+              styles.tabButton,
+              selectedTab === tab && styles.activeTabButton,
+            ]}
+          >
+            <Text style={selectedTab === tab ? styles.activeTabText : styles.tabText}>
+              {tab.charAt(0).toUpperCase() + tab.slice(1)}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
 
       {loading ? (
         <ActivityIndicator size="large" style={{ marginTop: 20 }} />
       ) : (
         <FlatList
-          data={lectures}
+          data={filteredLectures}
           keyExtractor={(item) => item._id}
           renderItem={renderLecture}
           contentContainerStyle={styles.listContainer}
@@ -233,20 +252,14 @@ style={[
 }
 
 const styles = StyleSheet.create({
-  headerImage: {
-    color: '#808080',
-    bottom: -90,
-    left: -35,
-    position: 'absolute',
-  },
   titleContainer: {
     flexDirection: 'row',
     gap: 8,
     marginBottom: 12,
     marginTop: 8,
-    alignItems: 'center',     // horizontal centering
-    justifyContent: 'center', // vertical centering
-    paddingVertical: 4,      // optional padding
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 4,
   },
   listContainer: {
     padding: 16,
@@ -270,21 +283,40 @@ const styles = StyleSheet.create({
   },
   longTextContainer: {
     marginTop: 12,
-    backgroundColor: '#f9f9f9',
     padding: 10,
     borderRadius: 8,
     maxHeight: 300,
     overflow: 'scroll',
   },
   sectionTitle: {
-    marginTop: 8,
     fontWeight: 'bold',
     fontSize: 16,
   },
   longText: {
     marginTop: 4,
     fontSize: 14,
-    color: '#333',
     lineHeight: 20,
+  },
+  tabContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginBottom: 12,
+    paddingHorizontal: 16,
+  },
+  tabButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    backgroundColor: '#ccc',
+  },
+  activeTabButton: {
+    backgroundColor: '#007AFF',
+  },
+  tabText: {
+    color: '#000',
+  },
+  activeTabText: {
+    color: '#fff',
+    fontWeight: 'bold',
   },
 });

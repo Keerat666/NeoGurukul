@@ -83,7 +83,7 @@ const LectureForm = ({ onSubmit,cloudinaryLink,setCloudinaryLink  }) => {
         <ScrollView contentContainerStyle={styles.container}>
           <TextInput
             placeholder="Created By Name"
-            value={`Lecture is being created by : ${values.lecture_createdBy_name}`}
+            value={`Teacher Name : ${values.lecture_createdBy_name}`}
             onChangeText={handleChange('lecture_createdBy_name')}
             onBlur={handleBlur('lecture_createdBy_name')}
             error={touched.lecture_createdBy_name && !!errors.lecture_createdBy_name}

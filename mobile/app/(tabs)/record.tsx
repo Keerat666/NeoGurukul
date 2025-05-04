@@ -124,8 +124,10 @@ export default function TabTwoScreen() {
       body: JSON.stringify({ file_url: fileUrl, lang, metadata }),
     });
 
-    if (!response.ok) {
-      throw new Error(`API call failed: ${response.statusText}`);
+    console.log(response.status)
+    console.log(response.body)
+    if (response.status === 503) {
+      alert("Please ask the maintainer to turn on the server.")
     }
 
     return await response.json();
@@ -157,13 +159,12 @@ export default function TabTwoScreen() {
       {!showRecording && (
         <View style={styles.container}>
           <ThemedView style={styles.titleContainer}>
-            <ThemedText type="title">Create a new Lecture 📝 </ThemedText>
+            <ThemedText type="title">Create a Lecture 📝 </ThemedText>
           </ThemedView>
 
           <ThemedText type="subtitle" style={styles.subtitle}>
-            Whenever you are ready, key in the following details and create a new Lecture :)  
+          When you're ready, just fill in the details below and let's create your new lecture! 😊          
           </ThemedText>
-
           <LectureForm
             onSubmit={onSubmit}
             cloudinaryLink={cloudinaryLink}
