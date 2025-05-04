@@ -1,5 +1,13 @@
 import React, { useState } from 'react';
-import { View, TextInput, Pressable, FlatList, KeyboardAvoidingView, Platform, StyleSheet } from 'react-native';
+import {
+  View,
+  TextInput,
+  Pressable,
+  FlatList,
+  KeyboardAvoidingView,
+  Platform,
+  StyleSheet,
+} from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
@@ -17,7 +25,7 @@ export default function LectureChatScreen() {
   const [input, setInput] = useState('');
   const colorScheme = useColorScheme();
 
-  const sendMessage = () => {
+  const sendMessage = async () => {
     if (!input.trim()) return;
 
     const userMsg: Message = {
@@ -29,21 +37,51 @@ export default function LectureChatScreen() {
     setMessages((prev) => [...prev, userMsg]);
     setInput('');
 
-    setTimeout(() => {
+    try {
+      const response = await fetch('https://neogurukul-ai.onrender.com/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          query: userMsg.text,
+          metadata: {
+            classId: lectureId,
+          },
+        }),
+      });
+
+      const data = await response.json();
+      console.log('Bot response:', data);
+
       const botMsg: Message = {
         id: Date.now().toString() + 'b',
         sender: 'bot',
-        text: `🤖 You asked about: "${userMsg.text}"`,
+        text: data.response || '🤖 Sorry, no answer returned.',
       };
+
       setMessages((prev) => [...prev, botMsg]);
-    }, 500);
+    } catch (error) {
+      console.error('API error:', error);
+      const errorMsg: Message = {
+        id: Date.now().toString() + 'b',
+        sender: 'bot',
+        text: '🤖 Sorry, there was a problem fetching the answer.',
+      };
+      setMessages((prev) => [...prev, errorMsg]);
+    }
   };
 
   return (
-    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.flex}>
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      style={styles.flex}
+    >
       <ThemedView style={styles.container}>
         <ThemedText type="title">{title}</ThemedText>
-        <ThemedText type="default" style={styles.summary}>{description}</ThemedText>
+        <ThemedText type="default" style={styles.summary}>
+          {description}
+        </ThemedText>
 
         <FlatList
           data={messages}
@@ -53,8 +91,10 @@ export default function LectureChatScreen() {
               style={[
                 styles.messageBubble,
                 {
-                  backgroundColor: item.sender === 'user' ? '#4C6EF5' : '#3A3A3A',
-                  alignSelf: item.sender === 'user' ? 'flex-end' : 'flex-start',
+                  backgroundColor:
+                    item.sender === 'user' ? '#4C6EF5' : '#3A3A3A',
+                  alignSelf:
+                    item.sender === 'user' ? 'flex-end' : 'flex-start',
                 },
               ]}
             >
@@ -73,7 +113,8 @@ export default function LectureChatScreen() {
             style={[
               styles.input,
               {
-                backgroundColor: colorScheme === 'dark' ? '#1E1E1E' : '#F2F2F2',
+                backgroundColor:
+                  colorScheme === 'dark' ? '#1E1E1E' : '#F2F2F2',
                 color: colorScheme === 'dark' ? 'white' : 'black',
               },
             ]}
