@@ -1,5 +1,6 @@
 //code extra business logic for users here leaving CRUD
 const UserModel = require('../models/users')
+const LectureModel = require('../models/lecture')
 
 module.exports = {
     user_login(req, res) {
@@ -47,5 +48,38 @@ module.exports = {
 
             }
         });
-    }
+    },
+
+
+    async home(req, res) {
+        try {
+          // Count of completed lectures
+          const completedCountPromise = LectureModel.countDocuments({ status: 'success' });
+    
+          // Count of not completed lectures
+          const notCompletedCountPromise = LectureModel.countDocuments({ status: { $ne: 'success' } });
+    
+          // Top 3 recent completed lectures
+          const recentCompletedLecturesPromise = LectureModel.find({ status: 'success' })
+            .sort({ lecture_created_at: -1 })
+            .limit(3)
+            .lean();
+    
+          // Await all in parallel
+          const [completedCount, notCompletedCount, recentCompletedLectures] = await Promise.all([
+            completedCountPromise,
+            notCompletedCountPromise,
+            recentCompletedLecturesPromise
+          ]);
+    
+          res.status(200).json({
+            completedCount,
+            notCompletedCount,
+            recentCompletedLectures
+          });
+        } catch (error) {
+          console.error('Error in home controller:', error);
+          res.status(500).json({ error: 'Internal server error' });
+        }
+      }
 }

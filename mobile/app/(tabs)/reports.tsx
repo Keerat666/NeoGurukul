@@ -15,15 +15,34 @@ interface Lecture {
   lecture_createdBy_name: string;
   lecture_created_at: string;
   status: string; // Added this
+  summary : string;
+  transcription : string;
 }
 
 export default function TabThreeScreen() {
   const [lectures, setLectures] = useState<Lecture[]>([]);
   const [loading, setLoading] = useState(true);
+
+
+  const [transcriptionHeartbeat, setTranscriptionHeartbeat] = useState({});
+
   const colorScheme = useColorScheme();
 
   const router = useRouter();
 
+
+  const fetchData =async()=>{
+
+    try {
+      const res = await fetch('https://neogurukul.onrender.com/api/v1/lecture/all');
+      const data = await res.json();
+      setLectures(data);
+      setLoading(false);
+    }
+    catch{
+      console.log("Encountered an error")
+    }
+  }
 
   useEffect(() => {
     const fetchLectures = async () => {
@@ -58,21 +77,12 @@ export default function TabThreeScreen() {
                     averageDuration : transcribeStatusRes?.output.average_duration
                   }),
                 });
-                //changing status for item
-                return {
-                  ...lecture,
-                  status: transcribeStatusRes.msg || lecture.status, // prefer new status if available
-                };
-
-                //trigger update call to database
-
-
+                //trigger a getAll call again
+                fetchData()
               }
               }
           })
-        );
-  
-        setLectures(updatedLectures);
+        );  
       } catch (error) {
         console.error('Failed to fetch lectures:', error);
       } finally {
@@ -96,6 +106,7 @@ export default function TabThreeScreen() {
       if (!res.ok) return null;
   
       const data = await res.json();
+      setTranscriptionHeartbeat(data)
       return data; // Assuming it returns { status: "completed" | "pending" | etc. }
     } catch (error) {
       console.error('Failed to fetch transcription status:', error);
@@ -141,17 +152,63 @@ export default function TabThreeScreen() {
         </audio>
       )}
 
+{item.status === "success" && (
+  <>
+    <View
+      style={[
+        styles.longTextContainer,
+        {
+          backgroundColor: colorScheme === 'dark' ? '#2a2a2a' : '#f9f9f9',
+        },
+      ]}
+    >
+      <ThemedText type="subtitle" style={styles.sectionTitle}>📝 Summary</ThemedText>
+      <ThemedText style={[styles.longText, { color: colorScheme === 'dark' ? '#ccc' : '#333' }]}>
+        {item.summary}
+      </ThemedText>
+
+      </View>
+
+      <View
+      style={[
+        styles.longTextContainer,
+        {
+          backgroundColor: colorScheme === 'dark' ? '#2a2a2a' : '#f9f9f9',
+        },
+      ]}
+    >
+      <ThemedText type="subtitle" style={styles.sectionTitle}>🗣️ Transcription</ThemedText>
+      <ThemedText style={[styles.longText, { color: colorScheme === 'dark' ? '#ccc' : '#333' }]}>
+        {item.transcription}
+      </ThemedText>
+    </View>
+  </>
+)}
+
+{transcriptionHeartbeat?.output?.data[0].length>0 &&
 <Pressable
-  onPress={() => handleStartChat(item)}
-  style={[
-    styles.chatButton,
-    {
-      backgroundColor: colorScheme === 'dark' ? 'green' : '#E0E0E0',
-    },
-  ]}
+onPress={() => handleStartChat(item)}
+style={[
+  styles.chatButton,
+  {
+    backgroundColor: colorScheme === 'dark' ? 'green' : '#E0E0E0',
+  },
+]}
 >
-  <ThemedText>Start Chat</ThemedText>
+<ThemedText>Start Chat</ThemedText>
 </Pressable>
+
+}
+
+
+
+{item.status !== "success" && (
+  <ThemedText style={{ marginVertical: 12, fontStyle: 'italic', color: '#888' }}>
+    Chat will be available shortly. We’re still processing the audio from this lecture.
+  </ThemedText>
+)}
+
+
     </View>
   );
 
@@ -210,5 +267,24 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     borderRadius: 8,
     alignItems: 'center',
+  },
+  longTextContainer: {
+    marginTop: 12,
+    backgroundColor: '#f9f9f9',
+    padding: 10,
+    borderRadius: 8,
+    maxHeight: 300,
+    overflow: 'scroll',
+  },
+  sectionTitle: {
+    marginTop: 8,
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+  longText: {
+    marginTop: 4,
+    fontSize: 14,
+    color: '#333',
+    lineHeight: 20,
   },
 });

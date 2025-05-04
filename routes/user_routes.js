@@ -29,6 +29,10 @@ router.post('/login', function(req, res) {
     users.user_login(req, res)
 });
 
+router.get('/home', function(req, res) {
+    users.home(req, res)
+});
+
 router.put('/edit', function(req, res) {
     crud.updateEntryByID(req, res, UserModel);
 });
