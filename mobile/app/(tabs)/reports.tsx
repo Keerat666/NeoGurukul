@@ -159,10 +159,10 @@ export default function TabThreeScreen() {
     >
       <ThemedText type="subtitle">{item.lectureTitle}</ThemedText>
       <ThemedText>{item.lectureDescription}</ThemedText>
-      <ThemedText>Language: {item.language}</ThemedText>
+      <ThemedText>Language: {item.language.charAt(0).toUpperCase() + item.language.slice(1)}</ThemedText>
       <ThemedText>By: {item.lecture_createdBy_name}</ThemedText>
       <ThemedText>Date: {new Date(item.lecture_created_at).toLocaleDateString()}</ThemedText>
-      <ThemedText>Status: {item.status}</ThemedText>
+      <ThemedText>Status: {item.status.charAt(0).toUpperCase() + item.status.slice(1)}</ThemedText>
 
       {Platform.OS === 'web' && (
         <audio controls style={styles.audioPlayer}>
@@ -285,7 +285,7 @@ const styles = StyleSheet.create({
     marginTop: 12,
     padding: 10,
     borderRadius: 8,
-    maxHeight: 300,
+    maxHeight: 250,
     overflow: 'scroll',
   },
   sectionTitle: {
